@@ -9,7 +9,7 @@ from Feature.navigator import (
     district_counts,
     hotspots_in_district,
     nearby_hotspots,
-    search_nearby_by_text,
+    search_by_text,
 )
 
 router = APIRouter()
@@ -66,14 +66,15 @@ async def get_nearby(body: NearbyRequest):
 
 class NearbyByTextRequest(BaseModel):
     query: str  # e.g. "台北101", "信義區市政府"
-    radius_m: int = NEARBY_RADIUS_OPTIONS_M[1]
 
 
 @router.post("/nearby_by_text")
 async def get_nearby_by_text(body: NearbyByTextRequest):
-    """Geocodes free text via Google Maps, then finds nearby hotspots."""
+    """Geocodes free text via Google Maps, then returns every hotspot in
+    that county (no backend distance filtering — the frontend does
+    "nearby" itself with its own map library, using `center` to zoom)."""
     try:
-        return search_nearby_by_text(body.query, body.radius_m)
+        return search_by_text(body.query)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except RuntimeError as e:

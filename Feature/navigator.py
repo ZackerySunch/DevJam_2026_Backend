@@ -26,6 +26,12 @@ NEARBY_RADIUS_OPTIONS_M = [500, 1000, 2000]  # presets shown to the end user
 
 GOOGLE_GEOCODE_URL = "https://maps.googleapis.com/maps/api/geocode/json"
 
+# Same 台/臺 normalization used in scripts/prepare_data.py and
+# scripts/geocode_stations.py, so Google's result lines up with COUNTY_LIST.
+COUNTY_NAME_ALIASES = {
+    "台北市": "臺北市", "台中市": "臺中市", "台南市": "臺南市", "台東縣": "臺東縣",
+}
+
 
 def haversine_m(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
     phi1, phi2 = math.radians(lat1), math.radians(lat2)
@@ -87,16 +93,17 @@ def nearby_hotspots(lat: float, lng: float, radius_m: int) -> list[dict]:
     return results
 
 
-def geocode(query: str) -> tuple[float, float]:
-    """Resolves free text (a place name/address) to (lat, lng) via Google's
-    Geocoding API. Requires GOOGLE_MAPS_API_KEY in the environment/.env."""
+def geocode(query: str) -> dict:
+    """Resolves free text (a place name/address) to a center point and, if
+    resolvable, which of our 22 counties it falls in. Requires
+    GOOGLE_MAPS_API_KEY in the environment/.env."""
     api_key = os.environ.get("GOOGLE_MAPS_API_KEY")
     if not api_key:
         raise RuntimeError("GOOGLE_MAPS_API_KEY is not set (check .env)")
 
     resp = requests.get(
         GOOGLE_GEOCODE_URL,
-        params={"address": query, "key": api_key, "region": "tw"},
+        params={"address": query, "key": api_key, "region": "tw", "language": "zh-TW"},
         timeout=5,
     )
     resp.raise_for_status()
@@ -105,11 +112,32 @@ def geocode(query: str) -> tuple[float, float]:
     if data["status"] != "OK" or not data["results"]:
         raise ValueError(f"could not geocode '{query}' (status: {data['status']})")
 
-    location = data["results"][0]["geometry"]["location"]
-    return location["lat"], location["lng"]
+    result = data["results"][0]
+    location = result["geometry"]["location"]
+
+    county_name = None
+    for component in result["address_components"]:
+        if "administrative_area_level_1" in component["types"]:
+            county_name = COUNTY_NAME_ALIASES.get(component["long_name"], component["long_name"])
+            break
+
+    return {
+        "lat": location["lat"],
+        "lng": location["lng"],
+        "county": COUNTY_FULL_TO_INDEX.get(county_name),
+    }
 
 
-def search_nearby_by_text(query: str, radius_m: int) -> list[dict]:
-    """Geocodes free text to coordinates, then finds nearby hotspots."""
-    lat, lng = geocode(query)
-    return nearby_hotspots(lat, lng, radius_m)
+def search_by_text(query: str) -> dict:
+    """Geocodes free text to a center point, then returns every hotspot in
+    that county — no backend distance filtering; the frontend's own map
+    library handles "nearby" from here using `center` to zoom/search."""
+    located = geocode(query)
+    if located["county"] is None:
+        raise ValueError(f"'{query}' did not resolve to one of the 22 counties")
+
+    return {
+        "center": {"lat": located["lat"], "lng": located["lng"]},
+        "county": located["county"],
+        "hotspots": hotspots_in_district(located["county"]),
+    }

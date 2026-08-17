@@ -58,11 +58,6 @@ GET /api/signal/stations?county=13
 |---|---|---|
 | `value` | float | 目前流量數字（Cloudflare Radar 原始正規化數值），**數字越大代表流量越高**，越小代表越低，直接拿來對應光柱脈衝強度即可 |
 | `timestamp` | string | 這個數值對應的 ISO 8601 時間戳（Cloudflare 目前資料的最新一筆，可能比呼叫當下略晚個幾十分鐘） |
-| 欄位 | 型別 | 說明 |
-|---|---|---|
-| `timestamps` | string[] | ISO 8601 時間戳，逐小時 |
-| `values` | float[] | 對應時間點的流量指數（Cloudflare Radar 原始正規化數值） |
-| `intensity` | float | 0-1，`values` 最後一筆（最新）相對這段時間內最小/最大值的位置，數字越高代表目前處於這段時間的流量高峰，建議直接拿來當光柱閃爍強度 |
 
 **錯誤**：`500`：後端 `.env` 沒設定 `CLOUDFLARE_RADAR_TOKEN`（設定問題，不是使用者輸入錯誤）
 
@@ -164,6 +159,7 @@ GET /api/uplink/incidents?active_only=true
 
 ---
 
+# 功能3: 公共WIFI
 ## 使用流程
 
 前端畫面設計成三層鑽取：
@@ -297,21 +293,32 @@ GET /api/uplink/incidents?active_only=true
 
 ## `POST /nearby_by_text`
 
-給地點名稱文字（例："台北101"），後端用 Google Geocoding API 轉成座標，再回傳附近熱點。
+給地點名稱文字（例："台北101"），後端用 Google Geocoding API 轉成座標、判斷屬於哪個縣市，回傳該縣市**全部**熱點——不在後端做距離篩選，前端拿到中心點座標後，用自己的圖資（地圖 SDK）自行做「附近」的搜尋/縮放，就跟 `/hotspots` 一樣是整個縣市的資料。
 
 **Request**
 ```json
-{ "query": "台北101", "radius_m": 500 }
+{ "query": "台北101" }
 ```
 | 欄位 | 型別 | 必填 | 說明 |
 |---|---|---|---|
 | `query` | string | 是 | 地點名稱、地址、地標，任何 Google 地圖搜得到的文字都可以 |
-| `radius_m` | int | 否 | 同 `/nearby`，省略預設 `1000` |
 
-**Response**：跟 `/nearby` 完全一樣的格式（含 `distance_m`）。
+**Response**
+```json
+{
+  "center": { "lat": 25.0332276, "lng": 121.5648681 },
+  "county": 13,
+  "hotspots": [ { "...": "跟 /hotspots 回傳陣列裡每個物件格式完全一樣" } ]
+}
+```
+| 欄位 | 型別 | 說明 |
+|---|---|---|
+| `center` | object | Google Geocoding 解析出來的座標，前端可以拿來當地圖中心點/縮放目標 |
+| `county` | int | 解析出來的縣市 index（0-21） |
+| `hotspots` | array | 該縣市**全部**熱點（不分行政區、不篩距離），格式跟 `/hotspots` 一樣 |
 
 **錯誤**：
-- `400`：Google 找不到這個地點（文字打錯、太模糊、`radius_m` 不合法）
+- `400`：Google 找不到這個地點，或地點不在台灣 22 縣市範圍內（文字打錯、太模糊、查到國外地點）
 - `500`：後端環境設定問題（`.env` 沒設 `GOOGLE_MAPS_API_KEY`），不是使用者輸入錯誤，前端可以顯示「服務暫時無法使用」
 
 ---
