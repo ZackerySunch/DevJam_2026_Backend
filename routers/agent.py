@@ -1,6 +1,8 @@
 from typing import Optional
 from fastapi import APIRouter
 from pydantic import BaseModel
+from agent import call_ai
+
 
 router = APIRouter()
 
@@ -13,10 +15,8 @@ class AgentChatRequest(BaseModel):
 
 @router.post("/chat")
 async def agent_chat(body: AgentChatRequest):
-    """AI Agent 對話與分析介面 (留給 AI Agent 功能實作)"""
-    return {
-        "status": "success",
-        "reply": f"AI Agent 接收到請求: {body.query}",
-        "session_id": body.session_id,
-    }
-
+    commamnd = call_ai.decision(user_message)
+    data = decoder(command,user_data)
+    prompt = build_prompt(user_message,data)
+    reply_message = call_ai.expert(prompt)
+    return reply_message
