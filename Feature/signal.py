@@ -90,40 +90,37 @@ def traffic_pulse() -> dict:
 
     token = os.environ.get("CLOUDFLARE_RADAR_TOKEN")
     if not token:
-        # Fallback simulation if token is absent
-        return {"value": 1.0, "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
+        raise RuntimeError("CLOUDFLARE_RADAR_TOKEN is not set (check .env)")
 
-    try:
-        resp = requests.get(
-            CLOUDFLARE_RADAR_URL,
-            headers={"Authorization": f"Bearer {token}"},
-            params={"location": "TW", "dateRange": "1d", "aggInterval": "15m", "format": "json"},
-            timeout=5,
-        )
-        if not resp.ok:
-            raise RuntimeError(f"Cloudflare Radar request failed ({resp.status_code})")
-        data = resp.json()
-        if not data.get("success"):
-            raise RuntimeError(f"Cloudflare Radar request failed: {data.get('errors')}")
+    resp = requests.get(
+        CLOUDFLARE_RADAR_URL,
+        headers={"Authorization": f"Bearer {token}"},
+        params={"location": "TW", "dateRange": "1d", "aggInterval": "15m", "format": "json"},
+        timeout=5,
+    )
+    if not resp.ok:
+        raise RuntimeError(f"Cloudflare Radar request failed ({resp.status_code}): {resp.text}")
+    data = resp.json()
+    if not data.get("success"):
+        raise RuntimeError(f"Cloudflare Radar request failed: {data.get('errors')}")
 
-        series = data["result"]["serie_0"]
-        _traffic_cache = {
-            "value": float(series["values"][-1]),
-            "timestamp": series["timestamps"][-1],
-        }
-        _traffic_cache_at = now
-        return _traffic_cache
-    except Exception:
-        # Graceful fallback to cached or default
-        if _traffic_cache is not None:
-            return _traffic_cache
-        return {"value": 1.0, "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
+    series = data["result"]["serie_0"]
+    _traffic_cache = {
+        "value": float(series["values"][-1]),
+        "timestamp": series["timestamps"][-1],
+    }
+    _traffic_cache_at = now
+    return _traffic_cache
 
 
 def station_locations(county: int = DEFAULT_COUNTY) -> list[dict]:
     """Base station coordinates with real-time load and pulsing indicators."""
-    pulse = traffic_pulse()
-    base_multiplier = pulse.get("value", 1.0)
+    # Station coordinates are real/local data and shouldn't go down just
+    # because Cloudflare Radar is unreachable/misconfigured.
+    try:
+        base_multiplier = traffic_pulse().get("value", 1.0)
+    except RuntimeError:
+        base_multiplier = 1.0
 
     if county == -1:
         selected_stations = _stations

@@ -50,6 +50,9 @@ COUNTY_ALIAS_MAP = {
     "澎湖": "澎湖縣", "澎湖縣": "澎湖縣",
     "金門": "金門縣", "金門縣": "金門縣",
     "連江": "連江縣", "連江縣": "連江縣", "馬祖": "連江縣",
+    # 機場/常見英文代碼別名 (decision agent 偶爾會用這種格式回傳縣市)
+    "TPE": "臺北市", "TSA": "臺北市", "KHH": "高雄市", "RMQ": "臺中市",
+    "TNN": "臺南市", "HUN": "花蓮縣", "MZG": "澎湖縣", "KNH": "金門縣", "TTT": "臺東縣",
 }
 
 # 電信業者別名映射表
@@ -68,7 +71,10 @@ def _resolve_county_index(county_input: str | int) -> tuple[int, str]:
         raise ValueError(f"縣市 index 超出範圍 (0-21): {county_input}")
 
     normalized = str(county_input).strip()
-    full_name = COUNTY_ALIAS_MAP.get(normalized, normalized)
+    if normalized.isdigit():
+        return _resolve_county_index(int(normalized))
+
+    full_name = COUNTY_ALIAS_MAP.get(normalized) or COUNTY_ALIAS_MAP.get(normalized.upper()) or normalized
     if full_name in COUNTY_FULL_TO_INDEX:
         return COUNTY_FULL_TO_INDEX[full_name], full_name
 

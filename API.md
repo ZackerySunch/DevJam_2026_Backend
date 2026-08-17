@@ -172,8 +172,40 @@ GET /api/signal/stations?county=13
 
 ---
 
-# 功能 5：AI Agent（網路智慧診斷） — prefix `/api/agent`
+# 功能 5：AI Agent（網路異常診斷） — prefix `/api/agent`
 
-## `POST /api/agent/chat`
+## 運作方式
 
-AI Agent 專屬對話與自動診斷介面（Body: `{"query": "目前台北網路壅塞嗎？"}`）。
+不是直接接 LLM，而是三段式管線，全部由 Simaic 平台上設定好的 agent 驅動（`agent/call_ai.py`）：
+
+1. **decision**：判斷使用者的問題需要查哪些真實資料（例如「哪個縣市」「要不要查海纜狀態」）
+2. **decoder**（`agent/decoder.py`）：依 decision 的判斷，實際呼叫我們自己的後端資料（`Feature.uplink` 海纜事故/狀態、`Feature.density` 4G/5G 密度、`Feature.navigator` WiFi），**不會用假資料**
+3. **expert**：拿使用者原始問題 + 上一步查到的真實資料，生成最終的診斷回答
+
+好處是回答一定有真實數字佐證（例如「目前 5 條海纜斷訊：APG、EAC1...」），不會憑空瞎猜。
+
+---
+
+## `POST /chat`
+
+**Request**
+```json
+{ "query": "台北的5G基地台多不多？海纜有沒有斷線？" }
+```
+| 欄位 | 型別 | 說明 |
+|---|---|---|
+| `query` | string | 自然語言問題，中文即可 |
+
+**Response**
+```json
+{ "answer": "根據 HolyPing 平台的最新監控數據...臺北市共有 7,299 座 5G 基地台...目前 12 條正常、5 條斷訊..." }
+```
+| 欄位 | 型別 | 說明 |
+|---|---|---|
+| `answer` | string | 自然語言診斷回答（繁體中文） |
+
+**注意事項**：
+- 這個 endpoint 會維持對話上下文（Simaic 端記住 `task_id`），同一個後端 process 內連續呼叫會被視為同一段對話的延續
+- 目前是同步阻塞呼叫，Simaic 回應通常要幾秒鐘，前端要處理 loading 狀態
+
+**錯誤**：`502`：Simaic API 呼叫失敗（網路問題、上游服務錯誤），`detail` 會帶原始錯誤訊息
