@@ -167,6 +167,11 @@ def process_base_station_location(filename: str = "466.csv"):
     """Parses an OpenCelliD country export (radio,mcc,net,area,cell,unit,lon,lat,range,
     samples,changeable,created,updated,averageSignal). Country export filename must be
     dropped into data/base_station_location/ (466 = Taiwan's MCC) before running.
+
+    OpenCelliD has no address text, so county is looked up from
+    data/base_station_location/county_cache.json (built by scripts/geocode_stations.py,
+    which reverse-geocodes each point via Google Maps). Run that script first/again if
+    you want county coverage; without a cache entry, county is null.
     """
     src = DATA_DIR / "base_station_location" / filename
     out = OUT_DIR / "base_station_location.json"
@@ -175,6 +180,9 @@ def process_base_station_location(filename: str = "466.csv"):
         print(f"[base_station_location] skipped: {src} not found")
         return
 
+    cache_path = DATA_DIR / "base_station_location" / "county_cache.json"
+    county_cache = json.loads(cache_path.read_text(encoding="utf-8")) if cache_path.exists() else {}
+
     fields = ["radio", "mcc", "net", "area", "cell", "unit", "lon", "lat",
               "range", "samples", "changeable", "created", "updated", "averageSignal"]
 
@@ -182,16 +190,20 @@ def process_base_station_location(filename: str = "466.csv"):
     with open(src, encoding="utf-8", newline="") as f:
         for row in csv.reader(f):
             record = dict(zip(fields, row))
+            lat = round_coord(record["lat"])
+            lng = round_coord(record["lon"])
             stations.append({
                 "radio": record["radio"],
-                "lat": round_coord(record["lat"]),
-                "lng": round_coord(record["lon"]),
+                "lat": lat,
+                "lng": lng,
                 "range_m": int(record["range"]),
                 "samples": int(record["samples"]),
+                "county": county_cache.get(f"{lat},{lng}"),
             })
 
     out.write_text(json.dumps(stations, ensure_ascii=False), encoding="utf-8")
-    print(f"[base_station_location] wrote {len(stations)} records -> {out}")
+    with_county = sum(1 for s in stations if s["county"])
+    print(f"[base_station_location] wrote {len(stations)} records ({with_county} with a county) -> {out}")
 
 
 if __name__ == "__main__":

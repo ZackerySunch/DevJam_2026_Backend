@@ -14,17 +14,31 @@ from pathlib import Path
 import requests
 from dotenv import load_dotenv
 
+from Feature.density import COUNTY_LIST, COUNTY_FULL_TO_INDEX
+
 load_dotenv()
 
 DATA_PATH = Path(__file__).resolve().parent.parent / "data" / "processed" / "base_station_location.json"
 _stations = json.loads(DATA_PATH.read_text(encoding="utf-8"))
 
 CLOUDFLARE_RADAR_URL = "https://api.cloudflare.com/client/v4/radar/http/timeseries"
+DEFAULT_COUNTY = COUNTY_FULL_TO_INDEX["臺北市"]
 
 
-def station_locations() -> list[dict]:
-    """All base station light-pillar coordinates."""
-    return _stations
+def station_locations(county: int = DEFAULT_COUNTY) -> list[dict]:
+    """Base station light-pillar coordinates for one county (defaults to
+    臺北市). Pass county=-1 to get every station in Taiwan (10,733 points).
+
+    OpenCelliD has no address text, so county comes from a one-time Google
+    reverse-geocode pass (scripts/geocode_stations.py) baked into the
+    processed data; ~15 stations with no match are excluded from every
+    county filter (they still show up in the county=-1 "all" view)."""
+    if county == -1:
+        return _stations
+    if not (0 <= county < len(COUNTY_LIST)):
+        raise ValueError(f"unknown county index: {county}")
+    full_county = COUNTY_LIST[county]
+    return [s for s in _stations if s["county"] == full_county]
 
 
 def traffic_pulse(hours: int = 24) -> dict:
