@@ -12,23 +12,25 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
 OUT_DIR = DATA_DIR / "processed"
 
+COORD_DECIMALS = 6  # frontend needs at least 4, at most 6 decimal places
 
-def process_wifi_hotspots():
-    src = DATA_DIR / "wifi_location" / "hotspotlist_tw.csv"
-    out = OUT_DIR / "wifi_hotspots.json"
 
-    hotspots = []
-    skipped = 0
+def round_coord(value: str | float) -> float:
+    return round(float(value), COORD_DECIMALS)
+
+
+def _parse_itaiwan() -> list[dict]:
+    src = DATA_DIR / "wifi_location" / "iTaiwan.csv"
+    records = []
     with open(src, encoding="utf-8-sig", newline="") as f:
         for row in csv.DictReader(f):
             try:
-                lat = float(row["Latitude"])
-                lng = float(row["Longitude"])
+                lat = round_coord(row["Latitude"])
+                lng = round_coord(row["Longitude"])
             except (KeyError, ValueError):
-                skipped += 1
                 continue
-
-            hotspots.append({
+            records.append({
+                "source": "iTaiwan",
                 "name": row["Name"].strip(),
                 "area": row["Area"].strip(),
                 "address": row["Address"].strip(),
@@ -37,9 +39,46 @@ def process_wifi_hotspots():
                 "lat": lat,
                 "lng": lng,
             })
+    return records
+
+
+def _parse_taipeifree() -> list[dict]:
+    src = DATA_DIR / "wifi_location" / "TaipeiFree.csv"
+    records = []
+    with open(src, encoding="utf-8-sig", newline="") as f:
+        for row in csv.DictReader(f):
+            try:
+                lat = round_coord(row["LATITUDE"])
+                lng = round_coord(row["LONGITUDE"])
+            except (KeyError, ValueError):
+                continue
+            records.append({
+                "source": "TaipeiFree",
+                "name": row["NAME"].strip(),
+                "area": row["county"].strip(),
+                "address": row["ADDR"].strip(),
+                "category": row["STYPE"].strip(),
+                "agency": row["AGENCY"].strip(),
+                "lat": lat,
+                "lng": lng,
+            })
+    return records
+
+
+# Add a `_parse_xxx() -> list[dict]` function per new dataset and register it
+# here; each record must have source/name/area/address/category/agency/lat/lng.
+WIFI_SOURCE_PARSERS = [_parse_itaiwan, _parse_taipeifree]
+
+
+def process_wifi_hotspots():
+    out = OUT_DIR / "wifi_hotspots.json"
+
+    hotspots = []
+    for parser in WIFI_SOURCE_PARSERS:
+        hotspots.extend(parser())
 
     out.write_text(json.dumps(hotspots, ensure_ascii=False), encoding="utf-8")
-    print(f"[wifi_hotspots] wrote {len(hotspots)} records, skipped {skipped} -> {out}")
+    print(f"[wifi_hotspots] wrote {len(hotspots)} records from {len(WIFI_SOURCE_PARSERS)} sources -> {out}")
 
 
 def roc_date_to_iso(period: str) -> str:
@@ -78,12 +117,9 @@ def process_base_station_density():
 
 
 def process_base_station_location(filename: str = "466.csv"):
-    """
-    Parses an OpenCelliD country export (radio,mcc,net,area,cell,unit,lon,lat,range,
-    samples,changeable,created,updated,averageSignal). Not run by default because the
-    only file currently in data/base_station_location/ (452.csv) is Vietnam (MCC 452),
-    not Taiwan (MCC 466). Drop the correct Taiwan export in as data/base_station_location/466.csv
-    and call this function (see __main__ below) to generate the processed JSON.
+    """Parses an OpenCelliD country export (radio,mcc,net,area,cell,unit,lon,lat,range,
+    samples,changeable,created,updated,averageSignal). Country export filename must be
+    dropped into data/base_station_location/ (466 = Taiwan's MCC) before running.
     """
     src = DATA_DIR / "base_station_location" / filename
     out = OUT_DIR / "base_station_location.json"
@@ -101,8 +137,8 @@ def process_base_station_location(filename: str = "466.csv"):
             record = dict(zip(fields, row))
             stations.append({
                 "radio": record["radio"],
-                "lat": float(record["lat"]),
-                "lng": float(record["lon"]),
+                "lat": round_coord(record["lat"]),
+                "lng": round_coord(record["lon"]),
                 "range_m": int(record["range"]),
                 "samples": int(record["samples"]),
             })
@@ -115,4 +151,4 @@ if __name__ == "__main__":
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     process_wifi_hotspots()
     process_base_station_density()
-    process_base_station_location()  # no-op until data/base_station_location/466.csv exists
+    process_base_station_location()
