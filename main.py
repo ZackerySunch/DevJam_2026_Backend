@@ -8,7 +8,7 @@ import routers.public_wifi as public_wifi
 
 
 app = FastAPI(
-    title="Sunch Nexus Engine",
+    title="HolyPing",
     description="The AI Execution Engine for Vibe Coders",
     version="0.1.0 (MVP)"
 )
