@@ -72,13 +72,19 @@ def district_counts(county: int) -> dict:
 
 
 def _format_hotspot(r: dict) -> dict:
+    lat = float(r["lat"]) if r.get("lat") is not None else None
+    lng = float(r["lng"]) if r.get("lng") is not None else None
     return {
-        "source": r["source"],
-        "name": r["name"],
-        "address": r["address"],
-        "latitude": r["lat"],
-        "longtitude": r["lng"],
+        "source": r.get("source", ""),
+        "name": r.get("name", ""),
+        "address": r.get("address", ""),
+        "latitude": lat,
+        "longitude": lng,      # 標準英文拼字
+        "longtitude": lng,     # 相容含 t 拼字
+        "lat": lat,            # 相容地圖庫常見縮寫
+        "lng": lng,            # 相容地圖庫常見縮寫
     }
+
 
 
 def hotspots_in_district(county: int | None = None, district: str | None = None) -> list[dict]:
