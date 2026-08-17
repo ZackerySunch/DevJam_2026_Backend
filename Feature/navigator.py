@@ -19,7 +19,11 @@ from Feature.density import COUNTY_LIST, COUNTY_FULL_TO_INDEX
 load_dotenv()
 
 DATA_PATH = Path(__file__).resolve().parent.parent / "data" / "processed" / "wifi_hotspots.json"
-_hotspots = json.loads(DATA_PATH.read_text(encoding="utf-8"))
+_raw_hotspots = json.loads(DATA_PATH.read_text(encoding="utf-8"))
+_hotspots = [
+    {**r, "county_id": COUNTY_FULL_TO_INDEX.get(r.get("area"))}
+    for r in _raw_hotspots
+]
 
 EARTH_RADIUS_M = 6_371_000
 NEARBY_RADIUS_OPTIONS_M = [500, 1000, 2000]  # presets shown to the end user
@@ -45,7 +49,7 @@ def county_counts() -> dict:
     """{"0": count, ..., "21": count} hotspot count per county (all sources)."""
     counts = {str(i): 0 for i in range(len(COUNTY_LIST))}
     for r in _hotspots:
-        idx = COUNTY_FULL_TO_INDEX.get(r["area"])
+        idx = r.get("county_id")
         if idx is not None:
             counts[str(idx)] += 1
     return counts
@@ -67,15 +71,21 @@ def district_counts(county: int) -> dict:
     return counts
 
 
-def hotspots_in_district(county: int, district: str | None = None) -> list[dict]:
-    """Hotspot markers for one county, optionally narrowed to one district."""
+def hotspots_in_district(county: int | None = None, district: str | None = None) -> list[dict]:
+    """Hotspot markers for all Taiwan (if county is None or -1), or for one county,
+    optionally narrowed to one district. Each record includes precise lat/lng and full metadata."""
+    if county is None or county == -1:
+        if district is not None:
+            return [r for r in _hotspots if r.get("district") == district]
+        return _hotspots
+
     if not (0 <= county < len(COUNTY_LIST)):
-        raise ValueError(f"unknown county index: {county}")
+        raise ValueError(f"unknown county index: {county} (must be 0-21, or -1/omit for all)")
     full_county = COUNTY_LIST[county]
 
-    results = [r for r in _hotspots if r["area"] == full_county]
+    results = [r for r in _hotspots if r.get("area") == full_county]
     if district is not None:
-        results = [r for r in results if r["district"] == district]
+        results = [r for r in results if r.get("district") == district]
     return results
 
 

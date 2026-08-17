@@ -216,47 +216,56 @@ GET /api/uplink/incidents?active_only=true
 
 ---
 
-## `POST /hotspots`
+## `GET /api/navigator/hotspots` 或 `POST /api/navigator/hotspots`
 
-某縣市（可選：某行政區）的實際熱點清單，給地圖標點用。
+取得 WIFI 熱點精確經緯度與完整資料（支援全台 18,046 筆、單一縣市、或特定行政區）。
 
-**Request**
+**Request (GET)**：Query 參數
+```
+GET /api/navigator/hotspots?county=13&district=信義區
+GET /api/navigator/hotspots?county=-1   # 拿全台灣所有 18,046 筆
+GET /api/navigator/hotspots             # 不帶參數等同全台灣
+```
+
+**Request (POST)**
 ```json
 { "county": 13, "district": "信義區" }
 ```
 | 欄位 | 型別 | 必填 | 說明 |
 |---|---|---|---|
-| `county` | int | 是 | 縣市 index（0-21） |
-| `district` | string | 否 | 行政區全名；省略則回傳整個縣市所有熱點（可能到千筆等級，臺北市總共 4,405 筆） |
+| `county` | int | 否 | 縣市 index（0-21）；傳 `-1`、`null` 或省略代表**取得全台灣所有 18,046 筆熱點** |
+| `district` | string | 否 | 行政區全名；省略則回傳該範圍內所有熱點 |
 
 **Response**
 ```json
 [
   {
     "source": "iTaiwan",
-    "name": "台北世貿郵局",
+    "name": "中央聯合辦公大樓南棟",
     "area": "臺北市",
-    "district": "信義區",
-    "address": "110臺北市信義區信義路五段5號",
+    "county_id": 13,
+    "district": "中正區",
+    "address": "100臺北市中正區徐州路5號1樓",
     "category": "洽公場所",
-    "agency": "中華郵政股份有限公司",
-    "lat": 25.033317,
-    "lng": 121.562303
+    "agency": "中央選舉委員會",
+    "lat": 25.04221,
+    "lng": 121.51947
   }
 ]
 ```
 | 欄位 | 型別 | 說明 |
 |---|---|---|
-| `source` | string | `"iTaiwan"` 或 `"TaipeiFree"` |
+| `source` | string | 資料來源：`"iTaiwan"`（全台機關場所）或 `"TaipeiFree"`（台北市站點/設施） |
 | `name` | string | 熱點/站點名稱 |
-| `area` | string | 縣市全名（繁體「臺」字，非「台」） |
-| `district` | string \| null | 行政區全名，極少數為 `null` |
-| `address` | string | 完整地址 |
-| `category` | string | 場所類型；`iTaiwan` 是「洽公場所」類的分類，`TaipeiFree` 是站點類型（公車站/圖書館/醫院/商圈市集等 12 種） |
-| `agency` | string | 管理機關 |
-| `lat` / `lng` | float | 座標，小數點後 4-6 位 |
+| `area` | string | 縣市全名（例：`"臺北市"`） |
+| `county_id` | int | 縣市編號（0-21），方便前端直接進行數值過濾與聚類計算 |
+| `district` | string \| null | 行政區全名（例：`"中正區"`），極少數為 `null` |
+| `address` | string | 完整詳細地址 |
+| `category` | string | 場所類型（例：`"洽公場所"`、`"旅遊景點"`、`"圖書館"`、`"公車站"` 等） |
+| `agency` | string | 所屬/主管機關名稱（例：`"內政部"`、`"中華郵政股份有限公司"`） |
+| `lat` / `lng` | float | 精確座標（經緯度） |
 
-**錯誤**：`county` 不在 0-21 範圍內 → `400`
+**錯誤**：`county` 不在 0-21 範圍內（且不是 -1）→ `400`
 
 ---
 

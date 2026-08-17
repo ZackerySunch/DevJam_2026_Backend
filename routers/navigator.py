@@ -35,15 +35,27 @@ async def get_district_counts(body: DistrictCountsRequest):
 
 
 class HotspotsRequest(BaseModel):
-    county: int
-    district: Optional[str] = None  # omit to get every hotspot in the county
+    county: Optional[int] = None  # index 0-21, or -1/omit for all Taiwan
+    district: Optional[str] = None  # omit to get all hotspots in the specified scope
+
+
+@router.get("/hotspots")
+async def get_hotspots_get(county: Optional[int] = None, district: Optional[str] = None):
+    """Hotspot markers for all Taiwan or a single county, optionally narrowed to one district.
+    Pass county=0-21 for a single county, or omit/pass county=-1 to get all 18,046 hotspots."""
+    try:
+        return hotspots_in_district(county, district)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.post("/hotspots")
-async def get_hotspots(body: HotspotsRequest):
-    """Hotspot markers for a county, optionally narrowed to one district."""
+async def get_hotspots(body: Optional[HotspotsRequest] = None):
+    """Hotspot markers for a county or all Taiwan, optionally narrowed to one district."""
+    county = body.county if body else None
+    district = body.district if body else None
     try:
-        return hotspots_in_district(body.county, body.district)
+        return hotspots_in_district(county, district)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
