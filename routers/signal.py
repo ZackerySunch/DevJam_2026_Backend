@@ -16,9 +16,9 @@ async def get_stations(county: int = DEFAULT_COUNTY):
 
 
 @router.get("/traffic")
-async def get_traffic(hours: int = 24):
-    """Taiwan-wide traffic timeseries + 0-1 pulse intensity for the last `hours`."""
+async def get_traffic():
+    """Current Taiwan-wide traffic level: bigger number = higher traffic."""
     try:
-        return traffic_pulse(hours)
+        return traffic_pulse()
     except RuntimeError as e:
         raise HTTPException(status_code=500, detail=str(e))
