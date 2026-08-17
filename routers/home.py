@@ -1,24 +1,22 @@
+from typing import Optional
 from fastapi import APIRouter
-from fastapi.responses import JSONResponse
-from datetime import datetime, timezone
-import json
-
+from pydantic import BaseModel
 
 router = APIRouter()
 
-@router.post("/home_page/get_events")
-async def run_cable_dns(project_id: str):
 
-    data = [
-        {
-            "id": 1,
-            "title": "APG 海纜發生斷訊",
-            "desc": "偵測到由台灣連往東京之 APG 核心海纜發生異常，延遲飆升至 250ms。",
-            "time": datetime.now(timezone.utc).isoformat(),
-            "label": 2
-        }
-    ]
+class AgentChatRequest(BaseModel):
+    query: str
+    session_id: Optional[str] = None
+    context: Optional[dict] = None
 
 
-    # Your implementation here
-    return data
+@router.post("/chat")
+async def agent_chat(body: AgentChatRequest):
+    """AI Agent 對話與分析介面 (留給 AI Agent 功能實作)"""
+    return {
+        "status": "success",
+        "reply": f"AI Agent 接收到請求: {body.query}",
+        "session_id": body.session_id,
+    }
+

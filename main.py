@@ -4,6 +4,7 @@ import routers.density as density
 import routers.uplink as uplink
 import routers.signal as signal
 import routers.navigator as navigator
+import routers.home as home
 from fastapi.middleware.cors import CORSMiddleware
 
 
@@ -27,6 +28,13 @@ app.include_router(density.router, prefix="/api/density", tags=["Density"])
 app.include_router(uplink.router, prefix="/api/uplink", tags=["Uplink"])
 app.include_router(signal.router, prefix="/api/signal", tags=["Signal"])
 app.include_router(navigator.router, prefix="/api/navigator", tags=["Navigator"])
+app.include_router(home.router, prefix="/api/agent", tags=["AI Agent"])
+
+# 相容舊版前端可能打的 /home_page/get_events
+@app.post("/home_page/get_events")
+async def legacy_home_page_events():
+    return await uplink.get_cable_events()
+
 
 if __name__ == "__main__":
     import uvicorn
