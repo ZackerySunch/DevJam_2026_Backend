@@ -71,13 +71,23 @@ def district_counts(county: int) -> dict:
     return counts
 
 
+def _format_hotspot(r: dict) -> dict:
+    return {
+        "source": r["source"],
+        "name": r["name"],
+        "address": r["address"],
+        "latitude": r["lat"],
+        "longtitude": r["lng"],
+    }
+
+
 def hotspots_in_district(county: int | None = None, district: str | None = None) -> list[dict]:
     """Hotspot markers for all Taiwan (if county is None or -1), or for one county,
-    optionally narrowed to one district. Each record includes precise lat/lng and full metadata."""
+    optionally narrowed to one district. Returns only source, name, address, latitude, longtitude."""
     if county is None or county == -1:
         if district is not None:
-            return [r for r in _hotspots if r.get("district") == district]
-        return _hotspots
+            return [_format_hotspot(r) for r in _hotspots if r.get("district") == district]
+        return [_format_hotspot(r) for r in _hotspots]
 
     if not (0 <= county < len(COUNTY_LIST)):
         raise ValueError(f"unknown county index: {county} (must be 0-21, or -1/omit for all)")
@@ -86,7 +96,7 @@ def hotspots_in_district(county: int | None = None, district: str | None = None)
     results = [r for r in _hotspots if r.get("area") == full_county]
     if district is not None:
         results = [r for r in results if r.get("district") == district]
-    return results
+    return [_format_hotspot(r) for r in results]
 
 
 def nearby_hotspots(lat: float, lng: float, radius_m: int) -> list[dict]:

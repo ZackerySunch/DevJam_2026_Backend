@@ -242,28 +242,19 @@ GET /api/navigator/hotspots             # 不帶參數等同全台灣
   {
     "source": "iTaiwan",
     "name": "中央聯合辦公大樓南棟",
-    "area": "臺北市",
-    "county_id": 13,
-    "district": "中正區",
     "address": "100臺北市中正區徐州路5號1樓",
-    "category": "洽公場所",
-    "agency": "中央選舉委員會",
-    "lat": 25.04221,
-    "lng": 121.51947
+    "latitude": 25.04221,
+    "longtitude": 121.51947
   }
 ]
 ```
 | 欄位 | 型別 | 說明 |
 |---|---|---|
-| `source` | string | 資料來源：`"iTaiwan"`（全台機關場所）或 `"TaipeiFree"`（台北市站點/設施） |
+| `source` | string | 資料來源：`"iTaiwan"` 或 `"TaipeiFree"` |
 | `name` | string | 熱點/站點名稱 |
-| `area` | string | 縣市全名（例：`"臺北市"`） |
-| `county_id` | int | 縣市編號（0-21），方便前端直接進行數值過濾與聚類計算 |
-| `district` | string \| null | 行政區全名（例：`"中正區"`），極少數為 `null` |
 | `address` | string | 完整詳細地址 |
-| `category` | string | 場所類型（例：`"洽公場所"`、`"旅遊景點"`、`"圖書館"`、`"公車站"` 等） |
-| `agency` | string | 所屬/主管機關名稱（例：`"內政部"`、`"中華郵政股份有限公司"`） |
-| `lat` / `lng` | float | 精確座標（經緯度） |
+| `latitude` | float | 緯度 |
+| `longtitude` | float | 經度 |
 
 **錯誤**：`county` 不在 0-21 範圍內（且不是 -1）→ `400`
 
