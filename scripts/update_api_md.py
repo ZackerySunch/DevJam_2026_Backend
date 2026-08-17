@@ -1,4 +1,7 @@
-# HolyPing Backend API 參考文件
+# scripts/update_api_md.py
+from pathlib import Path
+
+content = """# HolyPing Backend API 參考文件
 
 所有 endpoint 都吃 / 回傳 JSON，錯誤格式統一為 `{"detail": "錯誤訊息"}`（400 = 參數錯誤，500 = 伺服器/設定錯誤）。
 
@@ -177,3 +180,8 @@ GET /api/signal/stations?county=13
 ## `POST /api/agent/chat`
 
 AI Agent 專屬對話與自動診斷介面（Body: `{"query": "目前台北網路壅塞嗎？"}`）。
+"""
+
+out = Path(__file__).resolve().parent.parent / "API.md"
+out.write_text(content, encoding="utf-8")
+print(f"Updated {out} successfully.")
