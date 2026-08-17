@@ -68,7 +68,101 @@ GET /api/signal/stations?county=13
 
 ---
 
-# 功能3：Navigator（公共 WiFi） — prefix `/api/navigator`
+# 功能2：Uplink（電纜狀態 × DNS流向圖） — prefix `/api/uplink`
+
+## 使用流程
+
+1. 呼叫 `GET /cables` 拿全部 27 條海纜的路徑座標，依 `status` 決定畫線顏色/動畫：`normal`=正常（綠色流動）、`broken`=斷線（紅色斷裂特效）、`partial`=部分斷線、`building`=規劃中/建置中（虛線，通常沒有完整路徑座標）。
+2. 想單獨列出目前有問題的纜線，呼叫 `GET /incidents?active_only=true`。
+
+資料來源：[smc.peering.tw](https://smc.peering.tw) 的公開部署資料（原始資料庫是私有的，但網站本身公開部署了海纜路徑跟事故紀錄），用 `scripts/fetch_cables.py` 抓取，之後要更新最新資料直接重跑該腳本即可。RIPE Atlas 的 DNS/延遲數據還沒接，之後會補在這個 prefix 底下。
+
+---
+
+## `GET /cables`
+
+全部海纜路徑 + 目前狀態。
+
+**Request**：無 body，直接 GET。
+
+**Response**
+```json
+[
+  {
+    "id": "apg",
+    "name": "APG",
+    "color": "#xxxxxx",
+    "building": false,
+    "available_path": [["TW", "apg-seg-1", "TW-JP"]],
+    "equipments": [],
+    "segments": [
+      { "id": "apg-seg-1", "hidden": false, "coordinates": [[121.5, 25.0], ["..."]] }
+    ],
+    "status": "broken",
+    "active_incidents": [
+      {
+        "date": "2024-09-18T00:00:00+08:00",
+        "status": "disconnected",
+        "reason": "unknown",
+        "cableid": "apg",
+        "segment": "apg-seg-1",
+        "title": "...",
+        "description": "...",
+        "reparing_at": "",
+        "resolved_at": ""
+      }
+    ]
+  }
+]
+```
+| 欄位 | 型別 | 說明 |
+|---|---|---|
+| `id` | string | 纜線代號，跟 incidents 的 `cableid` 對應 |
+| `name` | string | 纜線全名 |
+| `color` | string | 建議畫線顏色（hex） |
+| `building` | bool | 是否為規劃中/建置中的纜線 |
+| `segments` | array | 每個 segment 有 `coordinates`（`[經度, 緯度]` 陣列，注意是**先經度後緯度**，跟一般 `lat,lng` 相反，因為是 GeoJSON 慣例），畫線直接照順序連起來即可 |
+| `status` | string | `"normal"` / `"broken"` / `"partial"` / `"building"`，後端算好的，不用自己判斷 |
+| `active_incidents` | array | 這條纜線目前未解決的事故（`resolved_at` 是空字串），沒有問題時是空陣列 |
+
+目前分布：27 條纜線中 12 條 `normal`、5 條 `broken`、4 條 `partial`、6 條 `building`。
+
+---
+
+## `GET /incidents`
+
+事故紀錄清單。
+
+**Request**：Query string，`active_only`（可選，預設 `false`；`true` 只回傳目前未解決的）。
+```
+GET /api/uplink/incidents?active_only=true
+```
+
+**Response**
+```json
+[
+  {
+    "date": "2024-09-18T00:00:00+08:00",
+    "status": "disconnected",
+    "reason": "unknown",
+    "cableid": "frnal-nacs",
+    "segment": "nacs-seg-2",
+    "title": "NACS 香港方向斷線",
+    "description": "於 24°43.3750'N 122°5.27'E 處發生故障",
+    "reparing_at": "",
+    "resolved_at": "2025-11-03T17:11:00+08:00"
+  }
+]
+```
+| 欄位 | 型別 | 說明 |
+|---|---|---|
+| `status` | string | `"disconnected"` 全斷 / `"partial_disconnected"` 部分斷線 / `"notice"` 公告事項 |
+| `cableid` / `segment` | string | 對應 `/cables` 裡的 `id` / `segments[].id` |
+| `resolved_at` | string | 空字串代表**目前仍未解決** |
+
+全部 76 筆，`active_only=true` 目前有 17 筆未解決。
+
+---
 
 ## 使用流程
 
