@@ -6,6 +6,7 @@ Run manually whenever a raw file under data/ changes:
 """
 import csv
 import json
+import re
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -14,9 +15,51 @@ OUT_DIR = DATA_DIR / "processed"
 
 COORD_DECIMALS = 6  # frontend needs at least 4, at most 6 decimal places
 
+# Some source rows use the simplified 台 variant instead of the official 臺.
+# Normalize to the same canonical name Feature/base_tower_density.py uses.
+COUNTY_NAME_ALIASES = {
+    "台北市": "臺北市",
+    "台中市": "臺中市",
+    "台南市": "臺南市",
+    "台東縣": "臺東縣",
+}
+
+DISTRICT_RE = re.compile(r"([一-鿿]{1,3}?(?:區|鄉|鎮|市))")
+
+# These 4 townships/districts have 區/鄉/鎮/市 as a non-final character
+# (前鎮"區", 左鎮"區", 平鎮"區", 新市"區"), which would otherwise make the
+# non-greedy DISTRICT_RE above stop one character too early. Checked against
+# all 368 official 鄉/鎮/市/區 names; these are the only ones affected.
+KNOWN_AMBIGUOUS_DISTRICTS = ["前鎮區", "左鎮區", "平鎮區", "新市區"]
+
 
 def round_coord(value: str | float) -> float:
     return round(float(value), COORD_DECIMALS)
+
+
+def normalize_county(name: str) -> str:
+    return COUNTY_NAME_ALIASES.get(name, name)
+
+
+def normalize_district(name: str) -> str:
+    return name.replace("台", "臺")
+
+
+def extract_district(address: str, county: str) -> str | None:
+    """Taiwan addresses are zip + county + district + street, e.g.
+    "100臺北市中正區徐州路5號1樓" -> district "中正區". Anchor on the county
+    name so leading zip-code digits can't confuse the match."""
+    idx = address.find(county)
+    if idx == -1:
+        return None
+    rest = address[idx + len(county):]
+
+    for name in KNOWN_AMBIGUOUS_DISTRICTS:
+        if rest.startswith(name):
+            return name
+
+    m = DISTRICT_RE.match(rest)
+    return normalize_district(m.group(1)) if m else None
 
 
 def _parse_itaiwan() -> list[dict]:
@@ -29,11 +72,14 @@ def _parse_itaiwan() -> list[dict]:
                 lng = round_coord(row["Longitude"])
             except (KeyError, ValueError):
                 continue
+            county = normalize_county(row["Area"].strip())
+            address = row["Address"].strip()
             records.append({
                 "source": "iTaiwan",
                 "name": row["Name"].strip(),
-                "area": row["Area"].strip(),
-                "address": row["Address"].strip(),
+                "area": county,
+                "district": extract_district(address, county),
+                "address": address,
                 "category": row["Administration"].strip(),
                 "agency": row["Agency"].strip(),
                 "lat": lat,
@@ -55,7 +101,8 @@ def _parse_taipeifree() -> list[dict]:
             records.append({
                 "source": "TaipeiFree",
                 "name": row["NAME"].strip(),
-                "area": row["county"].strip(),
+                "area": normalize_county(row["county"].strip()),
+                "district": normalize_district(row["AREA"].strip()) or None,
                 "address": row["ADDR"].strip(),
                 "category": row["STYPE"].strip(),
                 "agency": row["AGENCY"].strip(),
