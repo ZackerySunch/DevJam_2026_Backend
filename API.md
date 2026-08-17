@@ -2,22 +2,66 @@
 
 所有 endpoint 都吃/回傳 JSON，錯誤格式統一為 `{"detail": "錯誤訊息"}`（400 = 參數錯誤，500 = 伺服器/設定錯誤）。
 
-縣市一律用整數 index（0-21）表示，不用中文字串比對，對照表見 [data/processed/county_index.json](data/processed/county_index.json)（0=南投縣、13=臺北市...依此類推）。
-
----
-
-# 功能1：Signal（基地台位置 × 網路流量） — prefix `/api/signal`
+縣市一律用整數 index（0-21）表示，不用中文字串�# 功能1：Signal（基地台位置 × 網路流向圖） — prefix `/api/signal`
 
 ## 使用流程
 
-1. 進場先呼叫 `GET /stations`（不帶參數預設臺北市），畫成 3D 光柱；使用者可以自行切換縣市重新呼叫。
-2. 呼叫 `GET /traffic` 拿目前這個時間點的流量數字，全部光柱同步套用做「高頻脈衝閃爍」效果，數字越大代表流量越高，脈衝應該越強——**Cloudflare Radar 只有國家級的流量資料，沒有縣市級的區域數據**，所以目前是全台光柱同步閃爍，不是個別縣市各自閃爍。之後前端可以定時（例如每 5-10 分鐘）重打 `/traffic` 更新數字。
+1. **3D 基地台發光柱**：呼叫 `GET /stations?county=13`（預設臺北市），取得各基地台精確經緯度、訊號涵蓋範圍、即時負載與 `is_pulsing` 狀態。
+2. **點對點微血管/骨幹流量光線（粒子流）**：呼叫 `GET /flows?county=13`，取得該縣市各基地台至區域匯聚節點的微血管流量線；若不帶參數（或 `county=-1`）則取得全台灣跨縣市核心骨幹流量網絡。
+3. **閃爍連動**：當某條線路或基地台 `status == "congested"` 且 `is_pulsing == true` 時，前端將該區光柱與流向線切換為「高頻脈衝閃爍」效果（依 `pulse_frequency` 頻率跳動）。
+4. **全台總覽脈衝**：呼叫 `GET /traffic` 拿 Cloudflare Radar 當前全台灣即時流量指數。
 
 ---
 
-## `GET /stations`
+## `GET /api/signal/flows` 或 `GET /api/signal/traffic_flows`
 
-某縣市的基地台座標，給 3D 光柱地圖用。預設只回傳臺北市，避免一次给太多資料。
+取得點對點（Point-to-Point）網路流量流向數據（底層微血管光線 / 粒子流數據）。
+
+**Request**：Query string，`county`（可選，縣市 index 0-21；省略或傳 `-1` 取得全台骨幹流向）。
+```
+GET /api/signal/flows?county=13
+GET /api/signal/flows
+```
+
+**Response**
+```json
+[
+  {
+    "id": "st_flow_13_001",
+    "type": "access_link",
+    "from_name": "臺北市基地台 #1 (LTE)",
+    "from_lat": 25.0854,
+    "from_lng": 121.5254,
+    "to_name": "台北核心網際網路交換中心 (TPIX)",
+    "to_lat": 25.0425,
+    "to_lng": 121.5358,
+    "traffic_mbps": 780.5,
+    "bandwidth_mbps": 1000.0,
+    "load_percentage": 78.1,
+    "status": "normal",
+    "pulse_frequency": 1.6,
+    "latency_ms": 12.0
+  }
+]
+```
+| 欄位 | 型別 | 說明 |
+|---|---|---|
+| `id` | string | 線路/流向唯一識別碼 |
+| `type` | string | `"access_link"` (基地台微血管流向) 或 `"backbone"` (跨縣市核心骨幹) |
+| `from_name` / `to_name` | string | 起點與終點名稱 |
+| `from_lat` / `from_lng` | float | **起點精確經緯度** |
+| `to_lat` / `to_lng` | float | **終點精確經緯度** |
+| `traffic_mbps` / `traffic_gbps` | float | 即時傳輸流量數值 |
+| `load_percentage` | float | 當前頻寬負載百分比（0.0 ~ 100.0%） |
+| `status` | string | 狀態：`"normal"` (正常流動) / `"heavy"` (繁忙加速) / `"congested"` (高頻脈衝閃爍) |
+| `pulse_frequency` | float | 脈衝跳動頻率 (Hz) |
+| `latency_ms` | float | 估計線路延遲 (ms) |
+
+---
+
+## `GET /api/signal/stations`
+
+基地台座標與即時硬體負載/脈衝狀態（給 3D 光柱地圖用）。
 
 **Request**：Query string，`county`（可選，縣市 index 0-21，預設 `13` 臺北市；傳 `-1` 拿全台灣所有 10,733 筆）。
 ```
@@ -27,16 +71,45 @@ GET /api/signal/stations?county=13
 **Response**
 ```json
 [
-  { "radio": "LTE", "lat": 25.0854, "lng": 121.5254, "range_m": 1000, "samples": 8, "county": "臺北市" }
+  {
+    "radio": "LTE",
+    "lat": 25.0854,
+    "lng": 121.5254,
+    "range_m": 1000,
+    "samples": 8,
+    "county": "臺北市",
+    "traffic_load": 0.95,
+    "status": "normal",
+    "is_pulsing": false,
+    "pulse_rate": 0.8
+  }
 ]
 ```
 | 欄位 | 型別 | 說明 |
 |---|---|---|
 | `radio` | string | 制式，`"LTE"` 或 `"UMTS"` |
-| `lat` / `lng` | float | 座標 |
-| `range_m` | int | 訊號涵蓋半徑（公尺），可用來決定光柱粗細/範圍 |
-| `samples` | int | 該基地台的觀測樣本數，數字越大代表資料越可信 |
-| `county` | string \| null | 縣市全名。原始資料沒有地址文字，縣市是用 Google 反向地理編碼一次性查出來的；全台約 15 筆（0.1%）查不到，`county` 會是 `null`，這些點只會出現在 `county=-1` 的全台檢視 |
+| `lat` / `lng` | float | **基地台精確經緯度座標** |
+| `range_m` | int | 訊號涵蓋半徑（公尺），決定 3D 光柱粗細/範圍 |
+| `samples` | int | 該基地台觀測樣本數 |
+| `county` | string \| null | 縣市全名 |
+| `traffic_load` | float | 當前基地台負載指數 |
+| `status` | string | `"normal"` / `"heavy"` / `"congested"` |
+| `is_pulsing` | bool | **是否觸發高頻脈衝閃爍**（`true` 時驅動光柱高頻跳動） |
+| `pulse_rate` | float | 光柱脈衝頻率 |
+
+---
+
+## `GET /api/signal/traffic`
+
+台灣目前這個時間點的整體流量指數（Cloudflare Radar 原始脈衝數據）。
+
+**Request**：無 body，直接 GET。
+
+**Response**
+```json
+{ "value": 1.0, "timestamp": "2026-08-17T14:00:00Z" }
+```
+�理編碼一次性查出來的；全台約 15 筆（0.1%）查不到，`county` 會是 `null`，這些點只會出現在 `county=-1` 的全台檢視 |
 
 全台灣沒有澎湖縣/連江縣/金門縣的基地台資料（原始 OpenCelliD 資料集在這三個離島本來就沒有樣本，不是查詢遺漏）。
 
