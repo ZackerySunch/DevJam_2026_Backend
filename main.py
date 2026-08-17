@@ -4,7 +4,7 @@ import routers.density as density
 import routers.uplink as uplink
 import routers.signal as signal
 import routers.navigator as navigator
-
+from fastapi.middleware.cors import CORSMiddleware
 
 
 app = FastAPI(
@@ -14,14 +14,13 @@ app = FastAPI(
 )
 
 # Phase 1: CORS 全開 (Zero Friction)
-# Phase 1: 真正的大平台 CORS 全開 (Zero Friction)
-# app.add_middleware(
-#     CORSMiddleware,
-#     allow_origins=["*"],     # 🔥 讓全世界任何網域、任何人的瀏覽器都可以打進來
-#     allow_credentials=False, # ⚠️ 致命細節：origins 有 "*" 時，這裡絕對不能是 True
-#     allow_methods=["*"],     # 允許 GET, POST, PUT, DELETE 等所有方法
-#     allow_headers=["*"],     # 允許他們帶自訂的 Headers (例如 x-api-key 或 Authorization)
-# )
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],     # 🔥 讓全世界任何網域、任何人的瀏覽器都可以打進來
+    allow_credentials=False, # ⚠️ 致命細節：origins 有 "*" 時，這裡絕對不能是 True
+    allow_methods=["*"],     # 允許 GET, POST, PUT, DELETE 等所有方法
+    allow_headers=["*"],     # 允許他們帶自訂的 Headers (例如 x-api-key 或 Authorization)
+)
 
 # 掛載 Core Router
 app.include_router(density.router, prefix="/api/density", tags=["Density"])
