@@ -100,7 +100,7 @@ def hotspots_in_district(county: int | None = None, district: str | None = None)
 
 
 def nearby_hotspots(lat: float, lng: float, radius_m: int) -> list[dict]:
-    """Hotspots within radius_m of (lat, lng), nearest first."""
+    """Hotspots within radius_m of (lat, lng), nearest first. Returns 5 fields."""
     if radius_m not in NEARBY_RADIUS_OPTIONS_M:
         raise ValueError(f"radius_m must be one of {NEARBY_RADIUS_OPTIONS_M}")
 
@@ -108,9 +108,9 @@ def nearby_hotspots(lat: float, lng: float, radius_m: int) -> list[dict]:
     for r in _hotspots:
         d = haversine_m(lat, lng, r["lat"], r["lng"])
         if d <= radius_m:
-            results.append({**r, "distance_m": round(d, 1)})
-    results.sort(key=lambda r: r["distance_m"])
-    return results
+            results.append((d, r))
+    results.sort(key=lambda item: item[0])
+    return [_format_hotspot(r) for _, r in results]
 
 
 def geocode(query: str) -> dict:
