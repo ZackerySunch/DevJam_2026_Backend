@@ -6,6 +6,65 @@
 
 ---
 
+# 功能1：Signal（基地台位置 × 網路流量） — prefix `/api/signal`
+
+## 使用流程
+
+1. 進場先呼叫 `GET /stations` 拿全部基地台座標，畫成 3D 光柱。
+2. 呼叫 `GET /traffic` 拿目前的流量脈衝強度 `intensity`（0-1），全部光柱同步套用同一個強度做「高頻脈衝閃爍」效果——**Cloudflare Radar 只有國家級的流量資料，沒有縣市級的區域數據**，所以目前是全台光柱同步閃爍，不是個別縣市各自閃爍。之後前端可以定時（例如每 5-10 分鐘）重打 `/traffic` 更新強度。
+
+---
+
+## `GET /stations`
+
+全部基地台座標，給 3D 光柱地圖用。
+
+**Request**：無 body，直接 GET。
+
+**Response**
+```json
+[
+  { "radio": "LTE", "lat": 25.0854, "lng": 121.5254, "range_m": 1000, "samples": 8 }
+]
+```
+| 欄位 | 型別 | 說明 |
+|---|---|---|
+| `radio` | string | 制式，`"LTE"` 或 `"UMTS"` |
+| `lat` / `lng` | float | 座標 |
+| `range_m` | int | 訊號涵蓋半徑（公尺），可用來決定光柱粗細/範圍 |
+| `samples` | int | 該基地台的觀測樣本數，數字越大代表資料越可信 |
+
+總共 **10,733** 筆，一次全部回傳，前端自行做 3D 渲染/篩選。
+
+---
+
+## `GET /traffic`
+
+台灣整體流量時間序列 + 目前的脈衝強度。
+
+**Request**：Query string，`hours`（可選，預設 `24`）— 要抓最近幾小時的資料。
+```
+GET /api/signal/traffic?hours=24
+```
+
+**Response**
+```json
+{
+  "timestamps": ["2026-08-16T13:00:00Z", "2026-08-16T14:00:00Z", "..."],
+  "values": [0.985326, 1.0, 0.932778, "..."],
+  "intensity": 0.895
+}
+```
+| 欄位 | 型別 | 說明 |
+|---|---|---|
+| `timestamps` | string[] | ISO 8601 時間戳，逐小時 |
+| `values` | float[] | 對應時間點的流量指數（Cloudflare Radar 原始正規化數值） |
+| `intensity` | float | 0-1，`values` 最後一筆（最新）相對這段時間內最小/最大值的位置，數字越高代表目前處於這段時間的流量高峰，建議直接拿來當光柱閃爍強度 |
+
+**錯誤**：`500`：後端 `.env` 沒設定 `CLOUDFLARE_RADAR_TOKEN`（設定問題，不是使用者輸入錯誤）
+
+---
+
 # 功能3：Navigator（公共 WiFi） — prefix `/api/navigator`
 
 ## 使用流程

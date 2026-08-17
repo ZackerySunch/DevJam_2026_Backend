@@ -1,11 +1,20 @@
-from fastapi import APIRouter
-from fastapi.responses import JSONResponse
-import json
+from fastapi import APIRouter, HTTPException
 
+from Feature.signal import station_locations, traffic_pulse
 
 router = APIRouter()
 
-@router.post("/run/{project_id}")
-async def run_cable_dns(project_id: str):
-    # Your implementation here
-    pass
+
+@router.get("/stations")
+async def get_stations():
+    """All base station coordinates for the 3D light-pillar map."""
+    return station_locations()
+
+
+@router.get("/traffic")
+async def get_traffic(hours: int = 24):
+    """Taiwan-wide traffic timeseries + 0-1 pulse intensity for the last `hours`."""
+    try:
+        return traffic_pulse(hours)
+    except RuntimeError as e:
+        raise HTTPException(status_code=500, detail=str(e))
