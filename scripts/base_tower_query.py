@@ -29,12 +29,14 @@ COUNTY_LIST = [
 COUNTY_FULL_TO_INDEX = {name: i for i, name in enumerate(COUNTY_LIST)}
 
 # Only the 3 current major carriers (亞太電信/台灣之星 have since merged into these).
-PROVIDER_SHORT_TO_FULL = {
-    "中華電信": "中華電信股份有限公司",
-    "台灣大哥大": "台灣大哥大股份有限公司",
-    "遠傳": "遠傳電信股份有限公司",
+# Codes match ticker-style abbreviations the frontend uses: CHT=Chunghwa Telecom,
+# TWM=Taiwan Mobile, FET=Far EasTone.
+PROVIDER_CODE_TO_FULL = {
+    "CHT": "中華電信股份有限公司",
+    "TWM": "台灣大哥大股份有限公司",
+    "FET": "遠傳電信股份有限公司",
 }
-PROVIDER_FULL_TO_SHORT = {full: short for short, full in PROVIDER_SHORT_TO_FULL.items()}
+PROVIDER_FULL_TO_CODE = {full: code for code, full in PROVIDER_CODE_TO_FULL.items()}
 
 
 def iso_to_roc(iso_period: str) -> str:
@@ -54,10 +56,13 @@ def last_year_periods() -> list[str]:
 
 
 def query_by_provider(provider: str) -> dict:
-    """{"115/07": {"0": [5G_count, 4G_count], ..., "21": [...]}, ...} for the last 12 months."""
-    full_provider = PROVIDER_SHORT_TO_FULL.get(provider.strip())
+    """{"115/07": {"0": [5G_count, 4G_count], ..., "21": [...]}, ...} for the last 12 months.
+
+    provider is a carrier code: "CHT" / "TWM" / "FET".
+    """
+    full_provider = PROVIDER_CODE_TO_FULL.get(provider.strip().upper())
     if full_provider is None:
-        raise ValueError(f"unknown provider: {provider}")
+        raise ValueError(f"unknown provider code: {provider}")
 
     periods = last_year_periods()
     period_set = set(periods)
@@ -82,7 +87,7 @@ def query_by_provider(provider: str) -> dict:
 
 
 def query_by_location_time(location: int, time: str) -> dict:
-    """{"中華電信": [5G_count, 4G_count], "台灣大哥大": [...], "遠傳": [...]}"""
+    """{"CHT": [5G_count, 4G_count], "TWM": [...], "FET": [...]}"""
     if not (0 <= location < len(COUNTY_LIST)):
         raise ValueError(f"unknown location index: {location}")
     full_county = COUNTY_LIST[location]
@@ -94,18 +99,18 @@ def query_by_location_time(location: int, time: str) -> dict:
     except ValueError:
         raise ValueError(f"invalid time format, expected 'YYY/MM': {time}")
 
-    result = {short: [0, 0] for short in PROVIDER_SHORT_TO_FULL}
+    result = {code: [0, 0] for code in PROVIDER_CODE_TO_FULL}
 
     for r in _records:
         if r["county"] != full_county or not r["period"].startswith(period_prefix):
             continue
         if r["category"] not in ("5G", "4G"):
             continue
-        provider_short = PROVIDER_FULL_TO_SHORT.get(r["operator"])
-        if provider_short is None:
+        provider_code = PROVIDER_FULL_TO_CODE.get(r["operator"])
+        if provider_code is None:
             continue
         idx = 0 if r["category"] == "5G" else 1
-        result[provider_short][idx] += r["count"]
+        result[provider_code][idx] += r["count"]
 
     return result
 
@@ -118,9 +123,9 @@ if __name__ == "__main__":
     )
     print(f"wrote county index table -> {out_path}")
 
-    by_provider = query_by_provider("中華電信")
+    by_provider = query_by_provider("CHT")
     periods_preview = list(by_provider.keys())[:3]
-    print("query_by_provider('中華電信') periods:", periods_preview, "...")
+    print("query_by_provider('CHT') periods:", periods_preview, "...")
     first_period = next(iter(by_provider))
     print(f"  {first_period} sample: idx4({COUNTY_LIST[4]})={by_provider[first_period]['4']} "
           f"idx13({COUNTY_LIST[13]})={by_provider[first_period]['13']}")
