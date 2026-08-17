@@ -6,7 +6,7 @@
 
 ---
 
-# 功能1：公共 WiFi — prefix `/api/public_wifi`
+# 功能3：Navigator（公共 WiFi） — prefix `/api/navigator`
 
 ## 使用流程
 
@@ -160,7 +160,7 @@
 
 ---
 
-# 功能4：基地台密度 — prefix `/api/base_tower_density`
+# 功能4：Density（基地台密度） — prefix `/api/density`
 
 ## 使用流程
 

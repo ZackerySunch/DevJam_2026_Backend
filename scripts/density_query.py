@@ -1,14 +1,17 @@
 """
 Regenerates data/processed/county_index.json and prints example output from
-Feature/base_tower_density.py's query functions.
+Feature/density.py's query functions.
 
 Run:
-    python scripts/base_tower_query.py
+    python scripts/density_query.py
 """
 import json
+import sys
 from pathlib import Path
 
-from Feature.base_tower_density import (
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from Feature.density import (
     COUNTY_LIST,
     COUNTY_FULL_TO_INDEX,
     latest_period_roc,

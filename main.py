@@ -1,9 +1,9 @@
 # main.py
 from fastapi import FastAPI
-import routers.base_tower_density as base_tower_density
-import routers.cable_DNS as cable_DNS
-import routers.flow as flow
-import routers.public_wifi as public_wifi
+import routers.density as density
+import routers.uplink as uplink
+import routers.signal as signal
+import routers.navigator as navigator
 
 
 
@@ -24,10 +24,10 @@ app = FastAPI(
 # )
 
 # 掛載 Core Router
-app.include_router(base_tower_density.router, prefix="/api/base_tower_density", tags=["Base Tower Density"])
-app.include_router(cable_DNS.router, prefix="/api/cable_dns", tags=["Cable DNS"])
-app.include_router(flow.router, prefix="/api/flow", tags=["Flow"])
-app.include_router(public_wifi.router, prefix="/api/public_wifi", tags=["Public WiFi"])
+app.include_router(density.router, prefix="/api/density", tags=["Density"])
+app.include_router(uplink.router, prefix="/api/uplink", tags=["Uplink"])
+app.include_router(signal.router, prefix="/api/signal", tags=["Signal"])
+app.include_router(navigator.router, prefix="/api/navigator", tags=["Navigator"])
 
 if __name__ == "__main__":
     import uvicorn

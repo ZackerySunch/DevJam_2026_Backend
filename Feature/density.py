@@ -1,5 +1,5 @@
 """
-Base station density queries, backing routers/base_tower_density.py.
+Density (主題4: 基地台密度 × 歷史時間軸) queries, backing routers/density.py.
 
 Counties are identified by a fixed integer index (0-21) instead of Chinese
 names (see data/processed/county_index.json for the index -> county-name

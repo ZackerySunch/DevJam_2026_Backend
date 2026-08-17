@@ -3,7 +3,7 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from Feature.public_wifi import (
+from Feature.navigator import (
     NEARBY_RADIUS_OPTIONS_M,
     county_counts,
     district_counts,

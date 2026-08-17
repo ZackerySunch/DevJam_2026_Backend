@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from Feature.base_tower_density import query_by_provider, query_by_location_time
+from Feature.density import query_by_provider, query_by_location_time
 
 router = APIRouter()
 

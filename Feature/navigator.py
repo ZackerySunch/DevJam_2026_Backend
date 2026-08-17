@@ -1,5 +1,5 @@
 """
-Public WiFi hotspot queries, backing routers/public_wifi.py.
+Navigator (主題3: 公共 WiFi × AI 嚮導) queries, backing routers/navigator.py.
 
 Flow: county overview (counts per county) -> pick a county -> district
 breakdown -> pick a district -> hotspot markers. Also supports free-text /
@@ -14,7 +14,7 @@ from pathlib import Path
 import requests
 from dotenv import load_dotenv
 
-from Feature.base_tower_density import COUNTY_LIST, COUNTY_FULL_TO_INDEX
+from Feature.density import COUNTY_LIST, COUNTY_FULL_TO_INDEX
 
 load_dotenv()
 

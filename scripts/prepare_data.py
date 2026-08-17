@@ -16,7 +16,7 @@ OUT_DIR = DATA_DIR / "processed"
 COORD_DECIMALS = 6  # frontend needs at least 4, at most 6 decimal places
 
 # Some source rows use the simplified 台 variant instead of the official 臺.
-# Normalize to the same canonical name Feature/base_tower_density.py uses.
+# Normalize to the same canonical name Feature/density.py uses.
 COUNTY_NAME_ALIASES = {
     "台北市": "臺北市",
     "台中市": "臺中市",
