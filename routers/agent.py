@@ -14,6 +14,7 @@ class ChatRequest(BaseModel):
 async def chat(body: ChatRequest):
     """網路異常診斷 AI Agent：綜合海纜事故與即時流量資料回答問題。"""
     answer = diagnose(body.query)
+    
     # agent/call_ai.py doesn't raise on failure, it returns an error string.
     if isinstance(answer, str) and (answer.startswith("Error:") or answer.startswith("HTTP Request Error:")):
         raise HTTPException(status_code=502, detail=answer)

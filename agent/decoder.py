@@ -131,5 +131,5 @@ def decoder(command: dict, user_data: Optional[dict] = None) -> dict:
                 }
             except Exception as e:
                 results["get_new_events"] = {"error": str(e)}
-
+    
     return results
